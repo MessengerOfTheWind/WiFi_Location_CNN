@@ -1,5 +1,26 @@
 # Code adapted from  https://medium.com/@nutanbhogendrasharma/pytorch-convolutional-neural-network-with-mnist-dataset-4e8a4265e118
 
+"""
+CNN 模型可调参数说明（代码与中文对应）
+
+【模型结构参数】构造 CNNClassifier / CNNRegressor 时传入：
+  kernel_size  卷积核大小 / 滤波器大小     int，如 3/5/7
+  stride       步长                       int，常用 1
+  padding      填充量                     int，常用 1
+  dropout      随机失活率 / 丢弃率         float，如 0.2~0.5
+  n_classes    类别数（分类任务）          int，CNNClassifier 用
+  n_targets    回归目标数（回归任务）      int，CNNRegressor 用，如经纬度=2
+
+【训练过程参数】train_model() 中传入：
+  num_epochs       训练轮数 / 最大迭代次数   int
+  batch_size       批大小 / 批次大小         int，默认 64
+  lr               学习率                   float，如 0.001
+  patience         早停耐心值（连续多少轮不提升则停止） int，默认 5
+  weight_decay     权重衰减 / L2 正则化系数  float，如 0.01
+  eval_train       是否每轮在训练/验证集上评估并早停   bool，默认 False
+  sava_model_name  模型保存文件名（如 .pth） str，默认 "test.pth"
+"""
+
 import torch
 import torch.nn as nn
 from sklearn.preprocessing import StandardScaler
@@ -15,12 +36,13 @@ from Algorithms.utill.data_standar import denormalize_coords, mean_euclidean_dis
 from Algorithms.utill.compute_size import calc_out_size
 class CNN(nn.Module):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    """Constructor for CNN model.
+    """CNN 基类构造函数。
 
-    Params:
-    kernel_size (int): the size of CNN kernel
-    stride (int): the stride for the CNN
-    padding (int): the amount of padding we want on the input
+    参数（中文）：
+      kernel_size (int): 卷积核大小 / 滤波器大小
+      stride (int):     步长
+      padding (int):    填充量
+      dropout (float):  随机失活率 / 丢弃率
     """
     def __init__(self, kernel_size, stride, padding, dropout):
         super(CNN, self).__init__()
@@ -72,14 +94,7 @@ class CNN(nn.Module):
         output = self.fc2(x)
         return output
     
-    """ Fits the training data and test data to the model (should give preprocessed data).
-
-    Params:
-    X_train (array): training samples
-    Y_train (array): training labels
-    X_test (array): test samples
-    Y_test (array): test labels
-    """
+    """注入训练/测试数据（需已预处理）。参数：X_train/Y_train 训练样本与标签，X_test/Y_test 测试样本与标签。"""
     def fit(self, X_train, Y_train, X_test, Y_test):
         self.X_train = X_train
         self.Y_train = Y_train
@@ -87,11 +102,7 @@ class CNN(nn.Module):
         self.Y_test = Y_test
         # self.standard_scaler = Co_standard_scaler
     
-    """ Generates data loader for CNN training phase.
-
-    Params:
-    batch_size (int): the size of the batches
-    """
+    """生成训练/测试的 DataLoader。参数：batch_size (int) 批大小 / 批次大小。"""
     def create_loaders(self, batch_size):
         # Make Training data and Test data into tensors 
         tensor_xtrain = torch.Tensor(self.X_train)
@@ -106,11 +117,16 @@ class CNN(nn.Module):
         testdata_loader = DataLoader(test_data, batch_size = batch_size, num_workers = 1)
         self.loaders = {'train': traindata_loader, 'test': testdata_loader}
     
-    """ Trains the CNN model.
+    """训练 CNN 模型。
 
-    Params:
-    num_epochs (int): the number of epochs we use for training
-    batch_size (int): the size of the batches we use for learning
+    参数（中文）：
+      num_epochs (int):        训练轮数 / 最大迭代次数
+      batch_size (int):        批大小，默认 64
+      eval_train (bool):       是否每轮评估并早停，默认 False
+      lr (float):              学习率，默认 0.0005
+      patience (int):          早停耐心值，默认 5
+      sava_model_name (str):   模型保存文件名，默认 "test.pth"
+      kernel_size/stride/dropout/weight_decay: 用于日志记录
     """
     def train_model(self,num_epochs,batch_size=64,eval_train=False, lr = 0.0005, patience=5, sava_model_name = "test.pth", kernel_size = None, stride = None, dropout = None, weight_decay = None):
         self.create_loaders(batch_size)
@@ -228,13 +244,14 @@ class CNN(nn.Module):
 
 
 class CNNClassifier(CNN):
-    """Constructor for CNN classification model.
+    """CNN 分类模型（如楼层/建筑分类）。
 
-    Params:
-    n_classes (int): the number of classes
-    kernel_size (int): the size of CNN kernel
-    stride (int): the stride for the CNN
-    padding (int): the amount of padding we want on the input
+    参数（中文）：
+      n_classes (int):   类别数
+      kernel_size (int): 卷积核大小，默认 3
+      stride (int):      步长，默认 1
+      padding (int):     填充量，默认 1
+      dropout (float):   随机失活率，默认 0.25
     """
     def __init__(self,n_classes, kernel_size=3, stride=1, padding=1, dropout=0.25):
         super().__init__(kernel_size, stride, padding, dropout)
@@ -278,13 +295,14 @@ class CNNClassifier(CNN):
 
 
 class CNNRegressor(CNN):
-    """Constructor for CNN regression model.
+    """CNN 回归模型（如经纬度回归）。
 
-    Params:
-    n_outputs (int): number of labels for a given sample
-    kernel_size (int): the size of CNN kernel
-    stride (int): the stride for the CNN
-    padding (int): the amount of padding we want on the input
+    参数（中文）：
+      n_targets (int):   回归目标数（如经纬度=2），默认 1
+      kernel_size (int): 卷积核大小，默认 5
+      stride (int):      步长，默认 1
+      padding (int):     填充量，默认 1
+      dropout (float):   随机失活率，默认 0.25
     """
     def __init__(self,n_targets=1, kernel_size=5, stride=1, padding=1, dropout=0.25):
         super().__init__(kernel_size, stride, padding, dropout)
@@ -355,11 +373,7 @@ class CNNRegressor(CNN):
         return predictions_np, targets_np
 
 
-    """ Generates data loader for CNN training phase.
-
-    Params:
-    batch_size (int): the size of the batches
-    """
+    """生成训练/测试的 DataLoader。参数：batch_size (int) 批大小 / 批次大小。"""
     def create_loaders(self, batch_size):
         # Make Training data and Test data into tensors 
         tensor_xtrain = torch.Tensor(self.X_train)
@@ -374,11 +388,18 @@ class CNNRegressor(CNN):
         testdata_loader = DataLoader(test_data, batch_size = batch_size, num_workers = 1)
         self.loaders = {'train': traindata_loader, 'test': testdata_loader}
     
-    """ Trains the CNN model.
+    """训练 CNN 回归模型。
 
-    Params:
-    num_epochs (int): the number of epochs we use for training
-    batch_size (int): the size of the batches we use for learning
+    参数（中文）：
+      num_epochs (int):        训练轮数 / 最大迭代次数
+      batch_size (int):        批大小，默认 64
+      eval_train (bool):       是否每轮评估并早停，默认 False
+      min_max_dist:            坐标反归一化用 min/max，验证时算欧氏距离
+      lr (float):              学习率，默认 0.001
+      patience (int):          早停耐心值，默认 5
+      sava_model_name (str):   模型保存文件名，默认 "test.pth"
+      weight_decay (float):    权重衰减 / L2 正则化系数，默认 0.01
+      kernel_size/stride/dropout: 用于日志记录
     """
     def train_model(self,num_epochs,batch_size=64,eval_train=False, min_max_dist=None, lr=0.001, patience=5, sava_model_name = "test.pth",kernel_size = None, stride = None, weight_decay=0.01, dropout=None):
         self.create_loaders(batch_size)
