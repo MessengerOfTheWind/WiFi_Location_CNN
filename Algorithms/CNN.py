@@ -130,6 +130,8 @@ class CNN(nn.Module):
     """
     def train_model(self,num_epochs,batch_size=64,eval_train=False, lr = 0.0005, patience=5, sava_model_name = "test.pth", kernel_size = None, stride = None, dropout = None, weight_decay = None):
         self.create_loaders(batch_size)
+        self.to(self.device)  # 将模型移到 GPU（若可用）
+        print(f'Using device: {self.device}')
         # Train the model
         total_step = len(self.loaders['train'])
         optimizer = optim.Adam(self.parameters(), lr = lr, weight_decay=weight_decay)
@@ -141,8 +143,8 @@ class CNN(nn.Module):
         for epoch in range(num_epochs):
             for i, (images, labels) in enumerate(self.loaders['train']):
                 # retrieves batch data
-                b_x = images[:,None,:,:] # Changes shape to (batch_size,1,dimension,dimension)
-                b_y = labels
+                b_x = images[:,None,:,:].to(self.device)  # 移到 GPU
+                b_y = labels.to(self.device)
                 
                 # clear gradients for the training step
                 optimizer.zero_grad()
@@ -237,8 +239,8 @@ class CNN(nn.Module):
     (str): Success message 
     """
     def load_model(self, path):
-        self.load_state_dict(torch.load(path))
-        # self.eval()
+        self.load_state_dict(torch.load(path, map_location=self.device))
+        self.to(self.device)
         super().eval()
         return 'Successfully loaded model!'
 
@@ -287,7 +289,8 @@ class CNNClassifier(CNN):
         with torch.no_grad():
             correct = 0
             for images, labels in loader:
-                test_output = self(images[:,None,:,:])
+                images = images[:,None,:,:].to(self.device)
+                test_output = self(images)
                 pred_y = torch.max(test_output, 1)[1].data.squeeze().tolist()
                 predictions += pred_y
                 correct += sum(pred_y[i] == labels[i] for i in range(len(labels)))
@@ -331,7 +334,8 @@ class CNNRegressor(CNN):
         with torch.no_grad():
             total_error = 0
             for images, labels in loader:
-                test_output = self(images[:,None,:,:])
+                images = images[:,None,:,:].to(self.device)
+                test_output = self(images)
                 predictions += torch.squeeze(test_output).tolist()
                 targets += labels.tolist()
                 total_error += sum((labels[i].item() - test_output[i].item())**2 for i in range(len(test_output)))
@@ -355,7 +359,8 @@ class CNNRegressor(CNN):
         with torch.no_grad():
             total_error = 0
             for images, labels in loader:
-                test_output = self(images[:,None,:,:])
+                images = images[:,None,:,:].to(self.device)
+                test_output = self(images)
                 predictions += torch.squeeze(test_output).tolist()
                 ground_truths += labels.tolist()
                 for x in range(len(test_output)):
@@ -403,6 +408,8 @@ class CNNRegressor(CNN):
     """
     def train_model(self,num_epochs,batch_size=64,eval_train=False, min_max_dist=None, lr=0.001, patience=5, sava_model_name = "test.pth",kernel_size = None, stride = None, weight_decay=0.01, dropout=None):
         self.create_loaders(batch_size)
+        self.to(self.device)  # 将模型移到 GPU（若可用）
+        print(f'Using device: {self.device}')
         # Train the model
         total_step = len(self.loaders['train'])
         optimizer = optim.Adam(self.parameters(), lr=lr, weight_decay=weight_decay)
@@ -415,8 +422,8 @@ class CNNRegressor(CNN):
         for epoch in range(num_epochs):
             for i, (images, labels) in enumerate(self.loaders['train']):
                 # retrieves batch data
-                b_x = images[:,None,:,:] # Changes shape to (batch_size,1,dimension,dimension)
-                b_y = labels
+                b_x = images[:,None,:,:].to(self.device)
+                b_y = labels.to(self.device)
                 
                 # clear gradients for the training step
                 optimizer.zero_grad()
